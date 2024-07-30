@@ -1,0 +1,11 @@
+pipeline_batch_size: 32
+segmentation_model_weights_path: 'yolo_segmentation_model.pt'
+segmentation_confidence: 0.128
+cca_variable_k: 2
+device: 'cpu'
+LBP_radius: 1
+offset: 0.1099609375
+ndvi_epsilon: 0.0000000001
+HOG_orientations: 10
+HOG_pixels_per_cell: 16
+HOG_cells_per_block: 1
