@@ -1,3 +1,7 @@
+'''Backend code for the plant analysis pipeline. It consists of Plant_Analysis class which contains functions to read raw images, process images batch wise, save the result, and return individual types of data / analysis.
+Contact uday@tamu.edu / udaysanthoshkgp@gmail.com for queries related to code / installations.'''
+
+# import prerequisites
 import os
 import cv2
 from ultralytics import YOLO
@@ -8,10 +12,14 @@ from itertools import product
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import pdb
+# Import function for connected component analysis
 from Connect_Components_Preprocessing import CCA_Preprocess
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+# Import function for image stitching
 from Image_Stitching import *
+# Import functions for calculating plant statistics
 from Plant_Phenotypes import *
+# Import functions for Image Segmentation
 from Image_Segmentation import *
 from skimage.feature import local_binary_pattern,hog
 from skimage import exposure
@@ -25,6 +33,7 @@ import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import yaml
 
+# All hyperparameters and global variables are written in pipeline_config.yaml. Edit this file to change the hyperparameters or model path
 file = open('pipeline_config.yaml', 'r')
 pipeline_config = yaml.safe_load(file)
 file.close()
@@ -32,39 +41,42 @@ file.close()
 class Plant_Analysis:
     
     def __init__(self, session):
-
+        # Most variable names are self-explanatory
         self.batch_size = pipeline_config['pipeline_batch_size']
-        self.service_type = 0
-        self.input_folder_path = None
-        self.output_folder_path = None
-        self.show_raw_images = False
-        self.show_color_images = False
-        self.plant_paths = {}
-        self.plant_stats = {}
-        self.interm_result_folder = 'Interm_Results_'+str(session)
+        self.service_type = 0 # defines the type of service. 0 for Multi Plant Analysis and 1 for Single Plant Analysis. 0 by default
+        self.input_folder_path = None # Raw images folder path
+        self.output_folder_path = None # unused. can be removed.
+        self.show_raw_images = False # Flag to show raw input images in the GUI
+        self.show_color_images = False # Flag to show color images in the GUI
+        self.plant_paths = {} # Dictionary to store paths of intermediate result (raw images, color images and plant_analysis images)
+        self.plant_stats = {} $ Dictionary to store plant statistics of all plants
+        self.interm_result_folder = 'Interm_Results_'+str(session) # Path to store all the intermediate result. As we process plants batch wise, it is necessary to store the intermediate result so that we can retrieve it later when needed for GUI
         self.segmentation_model_weights_path = pipeline_config['segmentation_model_weights_path']
         self.segmentation_model = None
-        self.variable_k = pipeline_config['cca_variable_k']
+        self.variable_k = pipeline_config['cca_variable_k'] # hyperparameter k in CCA
         self.raw_channel_names = ['Red (660 nm)', 'Green (580 nm)', 'Red Edge (730 nm)', 'NIR (820 nm)']
-        self.device = pipeline_config['device']
-        self.LBP_radius = pipeline_config['LBP_radius']
-        self.LBP_n_points = 8*self.LBP_radius
-        self.offset = pipeline_config['offset']
-        self.analysis_items = ['stitched_image', 'cca_image', 'segmented_image', 'tips', 'branches', 'tips_and_branches', 'sift_features', 'lbp_features', 'hog_features', 'ndvi_image']
-        self.statistics_items = ['Height', 'Width', 'Area', 'Perimeter', 'Solidity', 'Number of Branches', 'Number of Leaves', 'NDVI (Maximum)', 'NDVI (Minimum)', 'NDVI (Average)', 'NDVI (Positive Average)']
-        self.statistics_units = [' cm', ' cm', ' square cm', ' cm', '', '', '', '', '', '', '']
-    
+        self.device = pipeline_config['device'] # device to load the model to. Change it to a relevant device name when using GPU. 'cpu' by default.
+        self.LBP_radius = pipeline_config['LBP_radius'] # LBP hyperparameter
+        self.LBP_n_points = 8*self.LBP_radius # LBP hyperparameter
+        self.offset = pipeline_config['offset'] # Offset (manually set in config file) to convert pixel measurements to real-life measurements in cm. Measured empirically in the greenhouse.
+        self.analysis_items = ['stitched_image', 'cca_image', 'segmented_image', 'tips', 'branches', 'tips_and_branches', 'sift_features', 'lbp_features', 'hog_features', 'ndvi_image'] # List of images sent to plant_analysis tab in GUI
+        self.statistics_items = ['Height', 'Width', 'Area', 'Perimeter', 'Solidity', 'Number of Branches', 'Number of Leaves', 'NDVI (Maximum)', 'NDVI (Minimum)', 'NDVI (Average)', 'NDVI (Positive Average)'] # List of statistics shown in GUI
+        self.statistics_units = [' cm', ' cm', ' square cm', ' cm', '', '', '', '', '', '', ''] # Respective units of measurement for the above statistics
+
+    # Updates service type when selected in the GUI
     def update_service_type(self,service):
         
         self.service_type = service
 
+    # Utility function to remove .ipynb_checkpoints in a list of directories
     def check_for_ipynb(self, input_list):
 
         if '.ipynb_checkpoints' in input_list:
             input_list.remove('.ipynb_checkpoints')
 
         return input_list
-    
+
+    # Parse folders in the raw input images folder path based on service type and updates plant_paths dictionary with paths to raw images
     def parse_folders(self):
 
         print('Debug: parsing folders')
@@ -92,12 +104,14 @@ class Plant_Analysis:
             for image_name in image_names:
                 image_path = os.path.join(plant_folder_path,image_name)
                 self.plant_paths[plant_name]['raw_images'].append(image_path)
-                
+
+    # Updates input folder path upon being called from GUI
     def update_input_path(self,input_path):
         
         self.input_folder_path = input_path
         self.parse_folders()
-        
+
+    # These two functions below update the flags to show raw images and color images in GUI upon selecting the checkboxes
     def update_check_RI_option(self, check_RI):
         
         self.show_raw_images = check_RI
@@ -105,11 +119,13 @@ class Plant_Analysis:
     def update_check_CI_option(self, check_CI):
         
         self.show_color_images = check_CI
-    
+
+    # Load image segmentation model
     def load_segmentation_model(self):
         
         self.segmentation_model = load_yolo_model(self.segmentation_model_weights_path)
 
+    # Functions below are utility functions to return information from pipeline
     def get_plant_names(self):
 
         return sorted(list(self.plant_paths.keys()))
@@ -141,7 +157,8 @@ class Plant_Analysis:
     def get_plant_statistics_df_plantwise(self, plant):
         
         return pd.DataFrame({'Phenotypic trait': self.statistics_items, 'Value': [str(round(self.plant_stats[plant][self.statistics_items[index]],2))+self.statistics_units[index] for index in range(len(self.statistics_items))]})
-        
+
+    # Utility function to divide the image into d by d grids and return coordinates of grids
     def tile(self, image, d=2):
         
         w, h = image.size
@@ -154,6 +171,7 @@ class Plant_Analysis:
 
         return boxes
 
+    # Get the list of plant names and divide them into batches depending on the batch_size. Variable 'batches' holds the divided batch sized lists.
     def make_batches(self):
 
         self.batches = []
@@ -167,7 +185,8 @@ class Plant_Analysis:
             end = min(num_plants,self.batch_size*(iter+1))
             if end > begin:
                 self.batches.append(plant_names[begin:end])
-    
+
+    # Prepare batches and run all modules in the pipeline for each batch, store the analysis result in an intermediate folder, and delete the analysis result. This is done to avoid overconsumption of RAM (raw images are a bottleneck). With batch processing, it is possible to process folders with large number of plants.
     def do_plant_analysis(self):
 
         self.make_batches()
@@ -190,6 +209,7 @@ class Plant_Analysis:
             self.save_interm_result(batch)
             del self.plants
 
+    # Utility function to plant analysis result of a batch in an intermediate folder
     def save_interm_result(self, batch):
 
         result_folder = self.interm_result_folder
@@ -219,7 +239,8 @@ class Plant_Analysis:
 
             with open(plant_analysis_output_file_path, 'wb') as handle:
                 pickle.dump(self.plants[plant_name], handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
+
+    # Load raw images from plant_paths into the plants dictionary
     def load_raw_images(self, batch):
 
         for plant_name in batch:
@@ -232,6 +253,7 @@ class Plant_Analysis:
                 image_name = image_path.split('/')[-1].split('.')[0]
                 self.plants[plant_name]['raw_images'].append((Image.open(image_path), image_name))
 
+    # Function to get the index of 
     def get_ndvi_image_indices(self, batch):
 
         for plant_name in batch:
