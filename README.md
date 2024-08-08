@@ -14,3 +14,6 @@ Plant analysis pipeline for greenhouse data analysis
 ## Launching Visualization Tool
 * Run ''' python gradio_viz_app.py ''' to launch visualization tool
 * In the GUI, insert the appropriate results folder path to check the visualization of results
+
+## Code Explanation
+* Check comments before each function and variable in the Python files
