@@ -253,7 +253,7 @@ class Plant_Analysis:
                 image_name = image_path.split('/')[-1].split('.')[0]
                 self.plants[plant_name]['raw_images'].append((Image.open(image_path), image_name))
 
-    # Function to get the index of 
+    # Function to get the index of the middle image of a plant to extract ndvi image from Red and NIR channels of raw image. These indices are stored in order to obtain the ndvi image later.
     def get_ndvi_image_indices(self, batch):
 
         for plant_name in batch:
@@ -266,7 +266,8 @@ class Plant_Analysis:
                 index = (num_images//2)
 
             self.plants[plant_name]['ndvi_image_index'] = index
-    
+
+    # Make color images by superimposing 3 of the channels from raw images
     def make_color_images(self, batch):
         
         for plant_name in batch:
@@ -302,6 +303,7 @@ class Plant_Analysis:
 
                 image_index += 1
 
+    # Calculate NDVI image from RED and NIR channels of raw image (middle index) of each plant
     def calculate_ndvi(self, batch):
 
         pcv.params.debug = None
@@ -378,7 +380,7 @@ class Plant_Analysis:
                 self.plant_stats[plant_name]['NDVI (Average)'] = avg_ndvi
                 self.plant_stats[plant_name]['NDVI (Positive Average)'] = pos_avg_ndvi
 
-    
+    # Function to stitch color images into a single composite image using image_stitching function
     def stitch_color_images(self, batch):
         
         for plant_name in batch:
@@ -386,7 +388,8 @@ class Plant_Analysis:
             input_images = [color_image for color_image,image_name in self.plants[plant_name]['color_images']]
             stitched_image = image_stitching(input_images)
             self.plants[plant_name]['stitched_image'] = (stitched_image, 'Whole Plant Image')
-            
+
+    # Remove background from the stitched color image by doing connected component analysis
     def calculate_connected_components(self, batch):
         
         for plant_name in batch:
@@ -396,7 +399,8 @@ class Plant_Analysis:
             cca_image = 255*(preprocessed_image - preprocessed_image.min()) / (preprocessed_image.max() - preprocessed_image.min())
             cca_image = cca_image.astype(np.uint8)
             self.plants[plant_name]['cca_image'] = (cca_image, 'Background Separated Using Connected Component Analysis')
-        
+
+    # Background removal using image segmentation.
     def run_segmentation(self, batch):
         
         input_images, plant_names = [self.plants[plant_name]['stitched_image'][0] for plant_name in batch], batch
@@ -415,7 +419,8 @@ class Plant_Analysis:
                 binary_mask_np = generate_binary_mask(mask)
                 overlayed_image = overlay_mask_on_image(binary_mask_np, self.plants[plant_names[result_index]]['stitched_image'][0])
                 self.plants[plant_names[result_index]]['segmented_image'] = (overlayed_image, 'Background Separated Using Image Segmentation')
-    
+
+    # For each plant, calculate plant statistics and store them in plant_stats dictionary
     def calculate_plant_phenotypes(self, batch):
 
         for plant_name in batch:
@@ -428,7 +433,8 @@ class Plant_Analysis:
             self.plant_stats[plant_name]['Solidity'] = phenotypes['Plant Solidity']
             self.plant_stats[plant_name]['Number of Branches'] = phenotypes['Number of Branches']
             self.plant_stats[plant_name]['Number of Leaves'] = phenotypes['Number of Leaves']
-        
+
+    # Calculate tips and branch points of the each plant using plantcv functions
     def calculate_tips_and_branches(self, batch):
 
         for plant_name in batch:
@@ -450,7 +456,8 @@ class Plant_Analysis:
             self.plants[plant_name]['tips_and_branches'] = (tips_and_branches, 'Plant Tips and Branch Points')
             self.plants[plant_name]['gray_image'] = (gray_image, 'Gray Segmented Image')
             self.plants[plant_name]['skeleton'] = (skeleton, 'Morphology Skeleton')
-        
+
+    # Get SIFT features
     def calculate_sift_features(self, batch):
 
         for plant_name in batch:
@@ -459,14 +466,16 @@ class Plant_Analysis:
             kp, des= sift.detectAndCompute(self.plants[plant_name]['skeleton'][0], None)
             sift_image = cv2.drawKeypoints(self.plants[plant_name]['skeleton'][0], kp, des)
             self.plants[plant_name]['sift_features'] = (sift_image, 'SIFT Features')
-        
+
+    # Get Local Binary Patterns
     def calculate_LBP_features(self, batch):
 
         for plant_name in batch:
 
             lbp = local_binary_pattern(self.plants[plant_name]['gray_image'][0], self.LBP_n_points, self.LBP_radius)
             self.plants[plant_name]['lbp_features'] = (lbp, 'Local Binary Patterns')
-        
+
+    # Get Histogram of Oriented Gradients
     def calculate_HOG_features(self, batch):
 
         for plant_name in batch:
@@ -476,6 +485,7 @@ class Plant_Analysis:
             hog_image_rescaled = hog_image_rescaled*255
             self.plants[plant_name]['hog_features'] = (hog_image_rescaled, 'Histogram of Oriented Gradients')
 
+    # Function to reset the variables, delete dictionaries and remove the stored intermediate result
     def clear(self):
 
         self.service_type = 0
@@ -487,10 +497,12 @@ class Plant_Analysis:
         del self.plant_stats
         shutil.rmtree(self.interm_result_folder)
 
+    # Reset function. As of now, it just prints that the session is being reset. This is just used for debugging. Actual reset is being done in the above clear() function.
     def reset(self):
 
         print('session reset')
 
+    # Utility function to return plant statistics in the form of a DataFrame. This df is used for plotting summary statistics in the GUI.
     def get_plant_statistics_df(self):
 
         plant_names = self.get_plant_names()
@@ -508,7 +520,8 @@ class Plant_Analysis:
         if not os.path.exists(folder):
 
             os.mkdir(folder)
-   
+
+    # Utility function to save the plant analysis results to a specified folder path.
     def save_results(self, folder_path):
 
         self.make_dir(folder_path)
