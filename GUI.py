@@ -1,50 +1,23 @@
-'''  '''
+''' This python file contains the front-end code for the plant analysis pipeline. User Interface is made using gradio. Front-end used the backend pipeline code from Plant_Analysis class. 
+Contact uday@tamu.edu / udaysanthoshkgp@gmail.com for questions regarding this code'''
 
+# Import backend code and other pre-requisites
 from Plant_Analysis import Plant_Analysis
 import gradio as gr
 from time import time
 import yaml
 
+# Get global variables from the yaml configuration file
 file = open('pipeline_config.yaml', 'r')
 pipeline_config = yaml.safe_load(file)
 file.close()
 
-'''import sys
-
-class Logger:
-
-    def __init__(self, filename):
-        self.terminal = sys.stdout
-        self.log = open(filename, "w")
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
-
-    def flush(self):
-        self.terminal.flush()
-        self.log.flush()
-
-    def isatty(self):
-        return False
-
-log_filename = 'GUI_output.log'
-
-sys.stdout = Logger(log_filename)
-
-def read_logs():
-    
-    sys.stdout.write('Gradio Application\n')
-    sys.stdout.flush()
-    with open(log_filename, "r") as f:
-        return f.read()'''
-
-
+# GUI class containing GUI layout and the components in the layout. This class communicates with Plant_Analysis to get the analysis results for visualization
 class GUI():
 
     def __init__(self):
 
-        self.session_index = 1
+        self.session_index = 1 # session index is helpful in 
         self.device = pipeline_config['device']
 
         self.head = (
