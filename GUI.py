@@ -45,28 +45,32 @@ class GUI():
         with self.demo:
 
             #self.demo.load(read_logs, None, None, every=1)
-            # Session name can be obtained from gradio State. For each session name, we maintain an object
+            # Session name can be obtained from gradio State. For each session name, we maintain a separate Plant_Analysis object to keep the process independent.
             self.session_name = gr.State([])
             
             gr.HTML(value = self.head)
-            
+
             with gr.Column():
                 
+                # Dropdown component to select type of service
                 self.service_dropdown = gr.Dropdown(choices = self.service_dropdown_choices, 
                                        multiselect = False, 
                                        label = 'Select Service',
                                        show_label = True, 
                                        visible = True,
                                        type = 'index')
-                
+
+                # Textbox for entering the input folder path
                 self.filepath_input = gr.Textbox(label = 'Enter folder path containing plant images',
                                             show_label = True,
                                             type = 'text',
                                             visible = False)
 
+                # Submit button to save input folder path
                 self.input_submit_button = gr.Button(value = 'Submit Input Folder Path',
                                           visible = False)
-                
+
+                # Checkboxes to set flags for showing raw images and color images in the plant analysis visualization
                 with gr.Row():
 
                     self.show_input_checkbox = gr.Checkbox(label = 'Show Raw Images',
@@ -78,18 +82,19 @@ class GUI():
                                                       info = 'Check to show color images',
                                                       value = False,
                                                       visible = False)
-                    
+
+                # Submit button for request
                 self.request_submit_button = gr.Button(value = 'Submit',
                                                        visible = False)
-                
+
+                # Textboxes to look at logging information and instructions in between
                 self.pre_information_textbox = gr.Textbox(label = 'Information',
                                                         visible = False)
 
                 self.post_information_textbox = gr.Textbox(label = 'Information',
                                                         visible = False)                
 
-                #outputs
-
+                # Summary statistics tabs for each statistic. These tabs have two columns in each tab. First column contains the summary statistics plot while the second column contains the visualization of max and min values of that statistic.
                 with gr.Tabs():
                     
                     self.plant_height_tab = gr.Tab(label = 'Height', visible = False)
@@ -188,6 +193,8 @@ class GUI():
                                                        visible = False,
                                                        type = 'value')
                 
+                # Tabs to show the plant analysis output. First two tabs are for showing raw images and color images and their visibility is decided based on the checkboxes above
+                # Plant analysis and Plant statistics tabs get output from plant_analysis object after processing the request
                 with gr.Tabs():
                     
                     self.input_images_tab = gr.Tab(label = 'Raw Input Images', visible = False)
@@ -224,25 +231,31 @@ class GUI():
                                              show_label = True,
                                              visible = False)
 
+                # Textbox to read output folder path
                 self.output_folder_textbox = gr.Textbox(label = 'Enter path to save results to',
                                                        show_label = True,
                                                        visible = False)
 
+                # Button to Save results after entering the output path in the above textbox
                 self.save_result_button = gr.Button(value = 'SAVE RESULTS',
                                                    visible = False)
 
+                # Information Textbox for showing acknowledgement that results are saved
                 self.saving_information_textbox = gr.Textbox(label = 'Information',
                                                             show_label = False,
                                                             visible = False)
 
+                # Clear button to remove the intermediate results directory, internal dictionaries, and reset the variables in plant_analysis object
                 self.clear_button = gr.Button(value = 'CLEAR CACHE',
                                                    visible = False)
 
 
+                #  Acknowledgement textbox to confirm that cache has been cleared
                 self.clear_info_textbox = gr.Textbox(label = 'Information',
                                                     show_label = False,
                                                     visible = False)
 
+                # Refresh button. This refreshes the browser tab.
                 self.reset_button = gr.Button(value = 'REFRESH',
                                                visible = False)
             
@@ -265,7 +278,11 @@ class GUI():
                 #                                 value = 'CLEAR',
                 #                                 visible = False)
                     
-        
+
+            # In the above definition of user interface using Blocks, we can notice that most of the components are originally set to be not visible.
+            # As the user selects options and submits his request, components are made visible one by one.
+            # Below, triggers are defined for each component so that GUI can be dynamically updated. Each trigger will call a function which returns the updated components necessary for the next step
+            
             self.service_dropdown.input(self.update_service,
                                         inputs = [self.session_name,
                                                   self.service_dropdown],
@@ -355,7 +372,7 @@ class GUI():
             
             self.reset_button.click(self.reset, inputs = self.session_name,  js="window.location.reload()")
             
-    
+    # Utility function to update service type in the plant_analysis object. We maintain a dictionary of Plant_Analysis objects with session name as key.
     def update_service(self, session, service_type):
         
         session.append('session_'+str(self.session_index))
@@ -374,7 +391,8 @@ class GUI():
                                           visible = True))
         outputs.append(session)
         return outputs
-        
+
+    # Utility function to update input path in the pipeline backend.
     def update_input_path(self, session, input_path):
 
         self.plant_analysis[session[0]].update_input_path(input_path)
@@ -391,6 +409,7 @@ class GUI():
                                           visible = True))
         return outputs
 
+    #Utility functions to update flags and other components
     def update_check_RI_option(self, session,  check_RI):
 
         self.plant_analysis[session[0]].update_check_RI_option(check_RI)
@@ -407,6 +426,7 @@ class GUI():
                           value = information,
                           visible = True)
 
+    # Load segmentation model and do plant analysis
     def get_plant_analysis(self, session):
 
         # self.plant_analysis[session[0]].make_color_images()
@@ -616,6 +636,7 @@ class GUI():
 
         return outputs
 
+    # Utility function to show the plant_analysis result
     def show_plant_analysis_result(self, session, plant):
 
         outputs = []
@@ -657,6 +678,7 @@ class GUI():
 
         return outputs
 
+    # Save analysis result to the user-specified folder path.
     def save_analysis_result(self, session, output_folder_path):
 
         self.plant_analysis[session[0]].save_results(output_folder_path)
@@ -666,6 +688,7 @@ class GUI():
                          value = 'Saved Result to the path: ' + output_folder_path,
                          visible = True)
 
+    # Function to clear the cache in backend
     def clear(self, session):
 
         self.plant_analysis[session[0]].clear()
@@ -680,7 +703,8 @@ class GUI():
                                 visible = True))
 
         return outputs
-    
+
+    # Function to reset the plant_analysis object
     def reset(self, session):
 
         self.plant_analysis[session[0]].reset()
