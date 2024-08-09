@@ -17,9 +17,10 @@ class GUI():
 
     def __init__(self):
 
-        self.session_index = 1 # session index is helpful in 
-        self.device = pipeline_config['device']
+        self.session_index = 1 # session index is helpful in processing different sessions independently
+        self.device = pipeline_config['device'] # set device for processing. cpu by default.
 
+        # Heading with lab image and link to greenhouse facility
         self.head = (
                     "<center>"
                     "<a href='https://precisiongreenhouse.tamu.edu/'><img src='https://peepleslab.engr.tamu.edu/wp-content/uploads/sites/268/2023/04/AgriLife_Logo-e1681857158121.png' width=1650></a>"
@@ -30,18 +31,21 @@ class GUI():
                     "</center>"
                 )
         
-
+        # Setting theme for the GUI
         self.theme = gr.themes.Base(
                 primary_hue="violet",
                 secondary_hue="green",).set(body_background_fill_dark='*checkbox_label_background_fill')
+        # GUI is built using gradio Blocks. Using gradio blocks, we can design an interface in the form of rows and columns.
+        # Structure of the interface can be designed by making use of 'with' context as below. Check out the gradio official documentation for more details.
         self.demo = gr.Blocks(theme=gr.themes.Default(primary_hue=gr.themes.colors.green, secondary_hue=gr.themes.colors.lime))
         self.service_dropdown_choices = ['Multi Plant Analysis', 'Single Plant Analysis']
         self.plant_analysis = {}
-        
+
+        # Start of blocks
         with self.demo:
 
             #self.demo.load(read_logs, None, None, every=1)
-
+            # Session name can be obtained from gradio State. For each session name, we maintain an object
             self.session_name = gr.State([])
             
             gr.HTML(value = self.head)
