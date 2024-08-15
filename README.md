@@ -11,6 +11,7 @@ Download the following dataset zip files from google drive [folder](https://driv
 * Raw_Images.zip (Contains 7 cotton plants)
 * Raw_Images_Duplicated.zip (Duplicated cotton plants to make a dummy dataset of 100 plants. This can be useful to check the latency of the pipeline for a large number of plants)
 * Rice_Corn_raw_images_plantwise.zip (Contains Rice and Corn plants)\
+
 Unzip these files into a dataset folder and specify the folder path of a dataset you would like as input folder path in the GUI
 
 
