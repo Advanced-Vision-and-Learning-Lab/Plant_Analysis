@@ -49,7 +49,7 @@ class Plant_Analysis:
         self.show_raw_images = False # Flag to show raw input images in the GUI
         self.show_color_images = False # Flag to show color images in the GUI
         self.plant_paths = {} # Dictionary to store paths of intermediate result (raw images, color images and plant_analysis images)
-        self.plant_stats = {} $ Dictionary to store plant statistics of all plants
+        self.plant_stats = {} # Dictionary to store plant statistics of all plants
         self.interm_result_folder = 'Interm_Results_'+str(session) # Path to store all the intermediate result. As we process plants batch wise, it is necessary to store the intermediate result so that we can retrieve it later when needed for GUI
         self.segmentation_model_weights_path = pipeline_config['segmentation_model_weights_path']
         self.segmentation_model = None
