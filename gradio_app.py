@@ -1,7 +1,11 @@
+
 from GUI import GUI
-
+import cProfile
+#import gradio as gr
 import sys
-
+import logging
+# Suppress Gradio's version warning
+logging.getLogger("gradio").setLevel(logging.ERROR)
 class Logger:
 
     def __init__(self, filename):
@@ -33,10 +37,14 @@ def read_logs():
 # launch GUI
 gui = GUI()
 demo = gui.demo
-
+demo.title="Plant Analysis and Feature Extraction"
 with demo:
-
+    # Inject HTML to change the tab title
+    #gr.HTML("<script>document.title = 'Plant Phenotyping';</script>")
     demo.load(read_logs, None, None, every=1)
+    #demo.load(lambda: '<script>document.title = "My Project Title";</script>', None, None)
 
-demo.launch(share = False)
+#demo.launch(share = False)
+# Launch the app with 'inbrowser=True' to open automatically
+demo.launch(share=False, inbrowser=True)
 read_logs()

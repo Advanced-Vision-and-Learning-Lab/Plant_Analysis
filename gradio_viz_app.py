@@ -4,7 +4,9 @@ import os
 import pandas as pd
 import yaml
 import cv2
-
+# Set the GRADIO_CACHE_DIR environment variable to your preferred directory
+#Adding import function for excel file handling
+import openpyxl
 class GUI_Viz():
 
     def __init__(self):
@@ -132,6 +134,8 @@ class GUI_Viz():
             outputs.append(gr.Tab(label = item, visible = True))
 
         plant_statistics_df = self.get_plant_statistics_df()
+        
+       
 
         for index,item in enumerate(self.statistics_items):
 
@@ -182,6 +186,7 @@ class GUI_Viz():
 
             df_dict[item] = [round(self.results_dict[plant_name][item],2) for plant_name in self.plant_names]
         
+         
         return pd.DataFrame(df_dict)
 
     def get_plant_statistics_df_plantwise(self, plant):

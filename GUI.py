@@ -6,6 +6,10 @@ from Plant_Analysis import Plant_Analysis
 import gradio as gr
 from time import time
 import yaml
+import platform
+import subprocess
+import tkinter as tk
+from tkinter import filedialog
 
 # Get global variables from the yaml configuration file
 file = open('pipeline_config.yaml', 'r')
@@ -14,7 +18,9 @@ file.close()
 
 # GUI class containing GUI layout and the components in the layout. This class communicates with Plant_Analysis to get the analysis results for visualization
 class GUI():
-
+   # Update the textbox with the path of the selected file
+   
+    
     def __init__(self):
 
         self.session_index = 1 # session index is helpful in processing different sessions independently
@@ -60,15 +66,26 @@ class GUI():
                                        visible = True,
                                        type = 'index')
 
-                # Textbox for entering the input folder path
-                self.filepath_input = gr.Textbox(label = 'Enter folder path containing plant images',
-                                            show_label = True,
-                                            type = 'text',
-                                            visible = False)
+                 # File picker button (hidden initially, shown after service selection)
+                self.file_input = gr.Button(
+                    value="Browse for a folder",  # Set button text
+                    visible=False
+                )
 
-                # Submit button to save input folder path
+                # Textbox for entering the input folder path
+                self.filepath_input = gr.Textbox(
+                    label='Enter folder path containing plant images',
+                    show_label=True,
+                    type='text',
+                    visible=False
+                )                       
+                
+                    
+                
+
+                    # Submit button to save input folder path
                 self.input_submit_button = gr.Button(value = 'Submit Input Folder Path',
-                                          visible = False)
+                                            visible = False)
 
                 # Checkboxes to set flags for showing raw images and color images in the plant analysis visualization
                 with gr.Row():
@@ -230,7 +247,9 @@ class GUI():
                         self.plant_statistics_df = gr.Dataframe(label = 'Plant Phenotypic Traits',
                                              show_label = True,
                                              visible = False)
-
+                # Button to  Browse results storage folder
+                self.browse_button_results= gr.Button(value = 'Browse Results folder output location',
+                                                   visible = False)
                 # Textbox to read output folder path
                 self.output_folder_textbox = gr.Textbox(label = 'Enter path to save results to',
                                                        show_label = True,
@@ -286,9 +305,15 @@ class GUI():
             self.service_dropdown.input(self.update_service,
                                         inputs = [self.session_name,
                                                   self.service_dropdown],
-                                        outputs = [self.filepath_input,
+                                        outputs = [self.file_input,self.filepath_input,
                                                    self.input_submit_button,
                                                    self.session_name])
+
+              # Connect file input (browse button) to folder selection
+            self.file_input.click(
+                self.select_folder,
+                outputs=self.filepath_input
+            )
 
             self.input_submit_button.click(self.update_input_path,
                                            inputs = [self.session_name,
@@ -358,10 +383,17 @@ class GUI():
                                                         self.color_images_gallery,
                                                         self.plant_analysis_gallery,
                                                         self.plant_statistics_df,
+                                                        self.browse_button_results,
                                                         self.output_folder_textbox,
                                                         self.save_result_button,
                                                         self.clear_button])
-
+            #Adding Browse button action
+            # Connect file input (browse button) to folder selection
+            
+            self.browse_button_results.click(
+                self.select_folder,
+                outputs=self.output_folder_textbox
+            )
             self.save_result_button.click(self.save_analysis_result,
                                          inputs = [self.session_name,
                                                    self.output_folder_textbox],
@@ -383,10 +415,29 @@ class GUI():
 
         self.plant_analysis[session[0]].update_service_type(service_type)
         outputs = []
-        outputs.append(gr.Textbox(label = 'Enter folder path containing plant images',
+        '''outputs.append(gr.Textbox(label = 'Enter folder path containing plant images',
                                             show_label = True,
                                             type = 'text',
                                             visible = True))
+        outputs.append(gr.Button(value = 'Submit Input Folder Path',
+                                          visible = True))
+        outputs.append(session)
+        return outputs'''
+
+        #editing this code to hold browse button
+        # File picker button (hidden initially, shown after service selection)
+        outputs.append( gr.Button(
+            value="Browse for a folder",  # Set button text
+            visible=True
+        ))
+
+        # Textbox for entering the input folder path
+        outputs.append(gr.Textbox(
+            label='Folder path containing plant images',
+            show_label=True,
+            type='text',
+            visible=True
+        ))
         outputs.append(gr.Button(value = 'Submit Input Folder Path',
                                           visible = True))
         outputs.append(session)
@@ -636,9 +687,50 @@ class GUI():
 
         return outputs
 
+
+
+     # Function to select folder based on the OS
+    def select_folder(self):
+        os_type = platform.system()
+
+        if os_type == "Linux":
+            # For Linux using Zenity
+            result = subprocess.run(['zenity', '--file-selection', '--directory'], stdout=subprocess.PIPE)
+            folder_path = result.stdout.decode('utf-8').strip()
+            return folder_path if folder_path else "No folder selected"
+        
+        elif os_type == "Darwin":  # macOS
+            # For macOS using osascript
+            result = subprocess.run(['osascript', '-e', 'POSIX path of (choose folder with prompt "Select a folder:")'], stdout=subprocess.PIPE)
+            folder_path = result.stdout.decode('utf-8').strip()
+            return folder_path if folder_path else "No folder selected"
+        
+        elif os_type == "Windows":
+            # For Windows using Tkinter
+            '''root = tk.Tk()
+            root.withdraw()  # Hide the main window
+            folder_path = filedialog.askdirectory()
+            return folder_path if folder_path else "No folder selected"'''
+            # For Windows using PowerShell
+            powershell_script = '''
+            Add-Type -AssemblyName System.Windows.Forms
+            $fbd = New-Object System.Windows.Forms.FolderBrowserDialog
+            [void]$fbd.ShowDialog()
+            $fbd.SelectedPath
+            '''
+            result = subprocess.run(['powershell', '-Command', powershell_script], stdout=subprocess.PIPE)
+            folder_path = result.stdout.decode('utf-8').strip()
+            return folder_path if folder_path else "No folder selected"
+
+
+        else:
+            return "Unsupported OS"
+
+
     # Utility function to show the plant_analysis result
     def show_plant_analysis_result(self, session, plant):
 
+        
         outputs = []
 
         outputs.append(gr.Tab(label = 'Raw Input Images', visible = self.plant_analysis[session[0]].show_raw_images))
@@ -667,17 +759,33 @@ class GUI():
                                  label = 'Estimated Plant Phenotypic Traits are ',
                                  show_label = True,
                                  visible = True))
-        outputs.append(gr.Textbox(label = 'Enter path to save results to',
-                               show_label = True,
-                               value = 'Results',
-                               visible = True))
+        #adding an output browse button to browse folder to save results to
+        outputs.append( gr.Button(
+            value="Browse for a folder",  # Set button text
+            visible=True
+        ))
+
+        # Textbox for entering the input folder path
+        outputs.append(gr.Textbox(
+            label='Path to save Results to',
+            show_label=True,
+            type='text',
+            visible=True
+        ))
+        
+       
         outputs.append(gr.Button(value = 'SAVE RESULTS',
                                visible = True))
         outputs.append(gr.Button(value = 'CLEAR CACHE',
                                visible = True))
-
+        
         return outputs
-
+    def update_textbox(self,file):
+                if file is not None:
+                    # Since `file.name` is used here, ensure you're getting the correct file path
+                    return file.name  # Return the file name to populate the text box
+                return ""
+    
     # Save analysis result to the user-specified folder path.
     def save_analysis_result(self, session, output_folder_path):
 

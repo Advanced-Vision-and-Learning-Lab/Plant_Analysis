@@ -31,7 +31,7 @@ def preprocess_mask(mask, target_size=(512, 512)):
 def generate_binary_mask(mask, target_size=(512, 512)):
     resized_mask = cv2.resize(mask, target_size)
     # Check if the mask has two channels
-    print(resized_mask.shape)
+    #print(resized_mask.shape)
     if len(resized_mask.shape) == 3:
         # Convert the mask to grayscale
         gray_mask = resized_mask[:, :, 0]

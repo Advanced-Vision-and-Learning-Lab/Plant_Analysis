@@ -12,10 +12,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler
-
+import time 
 
 def CCA_Preprocess(composite_img, k=2):
 
+    start_time = time.time()  # Start the overall timer
     #Use pca to reduce vector 
     reshaped_composite_img = np.reshape(composite_img,(-1,3))
     
@@ -133,4 +134,6 @@ def CCA_Preprocess(composite_img, k=2):
 #     plt.close()
     
     #Return gray image and mask
+    # End the overall timer
+    end_time = time.time()
     return gray_img, output/255

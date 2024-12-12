@@ -32,7 +32,9 @@ import plantcv
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import yaml
-
+#Adding import function for excel file handling
+import openpyxl
+import time
 # All hyperparameters and global variables are written in pipeline_config.yaml. Edit this file to change the hyperparameters or model path
 file = open('pipeline_config.yaml', 'r')
 pipeline_config = yaml.safe_load(file)
@@ -76,11 +78,14 @@ class Plant_Analysis:
 
         return input_list
 
+  
+
     # Parse folders in the raw input images folder path based on service type and updates plant_paths dictionary with paths to raw images
     def parse_folders(self):
 
         print('Debug: parsing folders')
         if self.service_type == 0:
+            
             folder_path = self.input_folder_path
             plant_folders = sorted(os.listdir(folder_path))
             for plant_folder in plant_folders:
@@ -94,6 +99,7 @@ class Plant_Analysis:
                     self.plant_paths[plant_folder]['raw_images'].append(image_path)
                     
         if self.service_type == 1:
+            
             plant_folder_path = self.input_folder_path
             plant_name = plant_folder_path.split('/')[-1]
             self.plant_paths[plant_name] = {}
@@ -104,7 +110,7 @@ class Plant_Analysis:
             for image_name in image_names:
                 image_path = os.path.join(plant_folder_path,image_name)
                 self.plant_paths[plant_name]['raw_images'].append(image_path)
-
+            
     # Updates input folder path upon being called from GUI
     def update_input_path(self,input_path):
         
@@ -117,7 +123,7 @@ class Plant_Analysis:
         self.show_raw_images = check_RI
 
     def update_check_CI_option(self, check_CI):
-        
+               
         self.show_color_images = check_CI
 
     # Load image segmentation model
@@ -129,10 +135,16 @@ class Plant_Analysis:
     def get_plant_names(self):
 
         return sorted(list(self.plant_paths.keys()))
-
     def get_raw_images(self, plant):
-
+        
+        #testing if images pixel values are same 
+        images=[(Image.open(image_path), image_path.split('/')[-1].split('.')[0]) for image_path in self.plant_paths[plant]['raw_images']]
+        # Loop over each image and print/export pixel values
+       
+    
+        
         return [(Image.open(image_path), image_path.split('/')[-1].split('.')[0]) for image_path in self.plant_paths[plant]['raw_images']]
+  
         
     def get_color_images(self, plant):
 
@@ -151,13 +163,16 @@ class Plant_Analysis:
         return [(image.astype(np.uint8), image_name) for image,image_name in [plant_analysis_dict[item] for item in self.analysis_items]]
 
     def get_plant_height(self, plant):
-
+        start_time=time.time()
+        round(self.plant_stats[plant]['Height'],2)
+         # End the overall timer
+        end_time = time.time()
         return str(round(self.plant_stats[plant]['Height'],2))+' cm'
     
     def get_plant_statistics_df_plantwise(self, plant):
         
         return pd.DataFrame({'Phenotypic trait': self.statistics_items, 'Value': [str(round(self.plant_stats[plant][self.statistics_items[index]],2))+self.statistics_units[index] for index in range(len(self.statistics_items))]})
-
+        
     # Utility function to divide the image into d by d grids and return coordinates of grids
     def tile(self, image, d=2):
         
@@ -201,10 +216,12 @@ class Plant_Analysis:
             self.calculate_connected_components(batch)
             self.run_segmentation(batch)
             self.calculate_plant_phenotypes(batch)
+            start_time=time.time()
             self.calculate_tips_and_branches(batch)
             self.calculate_sift_features(batch)
             self.calculate_LBP_features(batch)
             self.calculate_HOG_features(batch)
+            end_time=time.time()
             self.calculate_ndvi(batch)
             self.save_interm_result(batch)
             del self.plants
@@ -269,7 +286,7 @@ class Plant_Analysis:
 
     # Make color images by superimposing 3 of the channels from raw images
     def make_color_images(self, batch):
-        
+        start_time = time.time()  # Start the overall timer        
         for plant_name in batch:
             
             self.plants[plant_name]['color_images'] = []
@@ -302,7 +319,9 @@ class Plant_Analysis:
                     self.plants[plant_name]['ndvi_inputs'] = {'red': red, 'NIR': NIR, 'color': normalized_image}
 
                 image_index += 1
-
+            # End the overall timer
+            end_time = time.time()
+            
     # Calculate NDVI image from RED and NIR channels of raw image (middle index) of each plant
     def calculate_ndvi(self, batch):
 
@@ -402,7 +421,7 @@ class Plant_Analysis:
 
     # Background removal using image segmentation.
     def run_segmentation(self, batch):
-        
+        start_time = time.time()  # Start the overall timer
         input_images, plant_names = [self.plants[plant_name]['stitched_image'][0] for plant_name in batch], batch
         results = self.segmentation_model.predict(input_images, conf = pipeline_config['segmentation_confidence'], device = self.device)
         
@@ -419,8 +438,10 @@ class Plant_Analysis:
                 binary_mask_np = generate_binary_mask(mask)
                 overlayed_image = overlay_mask_on_image(binary_mask_np, self.plants[plant_names[result_index]]['stitched_image'][0])
                 self.plants[plant_names[result_index]]['segmented_image'] = (overlayed_image, 'Background Separated Using Image Segmentation')
-
-    # For each plant, calculate plant statistics and store them in plant_stats dictionary
+         # End the overall timer
+        end_time = time.time()
+        
+        # For each plant, calculate plant statistics and store them in plant_stats dictionary
     def calculate_plant_phenotypes(self, batch):
 
         for plant_name in batch:
@@ -512,6 +533,7 @@ class Plant_Analysis:
         for item in self.statistics_items:
 
             df_dict[item] = [round(self.plant_stats[plant_name][item],2) for plant_name in plant_names]
+         #get plant statistics of all plants sree chandar
         
         return pd.DataFrame(df_dict)
 
@@ -521,7 +543,10 @@ class Plant_Analysis:
 
             os.mkdir(folder)
 
-    # Utility function to save the plant analysis results to a specified folder path.
+  
+    
+
+     # Utility function to save the plant analysis results to a specified folder path.
     def save_results(self, folder_path):
 
         self.make_dir(folder_path)
@@ -555,18 +580,68 @@ class Plant_Analysis:
                 f.write(line)
                 result_dict[plant_name][item] = self.plant_stats[plant_name][item]
         
+        
         f.close()
+        
+        #Additional feature added to dump plant statistics in xlsx format
+        # Convert result_dict to a DataFrame
+        # Flatten the nested dictionary for DataFrame conversion
+        flattened_data = []
+        for plant_name, plant_data in result_dict.items():
+
+            if plant_name in ['statistics_items' 'statistics_units']:
+                   continue  # Skip these two entries
+            flat_dict = {}
+            flat_dict['plant_name'] = plant_name
+            
+            # If plant_data is a dictionary, unpack it
+            if isinstance(plant_data, dict):
+                for key, value in plant_data.items():
+                
+                        # Add the appropriate units for Height, Width, Area, and Perimeter
+                        '''
+                        if key == 'Height':
+                            flat_dict[key] = f"{value} cm"
+                        elif key == 'Width':
+                            flat_dict[key] = f"{value} cm"
+                        elif key == 'Area':
+                            flat_dict[key] = f"{value} cm²"
+                        elif key == 'Perimeter':
+                            flat_dict[key] = f"{value} cm"
+                        else:
+                        '''
+                        flat_dict[key] = value  # No units for other statistics
+              
+            else:
+                flat_dict['data'] = plant_data
+            
+            flattened_data.append(flat_dict)
+
+        # Convert the flattened data to a DataFrame
+        result_df = pd.DataFrame(flattened_data)
+        
+        # Drop a row by condition
+        result_df = result_df.drop(result_df[result_df['plant_name'] == 'statistics_items'].index) 
+        # Drop the 'tips' and 'branch_points' columns if they exist
+        result_df = result_df.drop(columns=['data','tips', 'branch_points'], errors='ignore')
+        result_df=result_df[result_df['plant_name']!='statistics_units']   
+        
+        # Save DataFrame to an Excel file
+        excel_path = os.path.join(folder_path, 'plants_features_and_statistics.xlsx')
+        result_df.to_excel(excel_path,index=False)
+        
         
         json_filepath = os.path.join(folder_path, 'plant_features_and_statistics.json')
         
         with open(json_filepath, 'w') as fp:
-            
+           
             json.dump(result_dict, fp, indent = 4)
 
         for plant_name in plant_names:
-
+            
             plant_folder = os.path.join(folder_path, plant_name)
             self.make_dir(plant_folder)
+           
             color_images_folder = os.path.join(plant_folder, 'Color_Images')
             self.make_dir(color_images_folder)
 
@@ -579,7 +654,76 @@ class Plant_Analysis:
 
             analysis_images = self.get_plant_analysis_images(plant_name)
             
+            # Define a list of image names you are interested in
+           # target_image_names = ['Plant Branch Points', 'Plant Tips', 'Plant Tips and Branch Points','Background Separated Using Connected Component Analysis']
+            # Create a dictionary to store the images
+            #selected_images = {}
+            
             for image,name in analysis_images:
-
+                # Check if the image name matches one of the target names
+                
+                
+                #if name in target_image_names:
+                    #selected_images[name] = image
                 cv2.imwrite(os.path.join(plant_folder,'_'.join(name.split(' '))+'.jpg'), image)
-    
+                # Define target filenames
+            target_files = {
+        'Whole_Plant_Image.jpg': None,
+        'Plant_Branch_Points.jpg': None,
+        'Plant_Tips.jpg': None,
+        'Plant_Tips_and_Branch_Points.jpg': None
+    }
+
+            # List all directories in the parent folder
+            plant_folders = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f))]
+            
+            for plant_folder in plant_folders:
+                plant_folder_path = os.path.join(folder_path, plant_folder)
+                
+                all_files = os.listdir(plant_folder_path)
+        
+                # Search for target files in the current plant folder
+                for file_name in all_files:
+                    if file_name in target_files:
+                        target_files[file_name] = os.path.join(plant_folder_path, file_name)
+        
+                # Ensure all required files are found
+                if all(target_files.values()):
+                    # Unpack paths into separate variables
+                    whole_plant_image_path = target_files['Whole_Plant_Image.jpg']
+                    plant_branch_points_path = target_files['Plant_Branch_Points.jpg']
+                    plant_tips_path = target_files['Plant_Tips.jpg']
+                    plant_tips_and_branch_points_path = target_files['Plant_Tips_and_Branch_Points.jpg']
+        
+                    # Load images
+                    plant_img = cv2.imread(whole_plant_image_path)
+                    points_img = cv2.imread(plant_branch_points_path)
+        
+                    # Ensure both images are the same size
+                    if plant_img.shape != points_img.shape:
+                        points_img = cv2.resize(points_img, (plant_img.shape[1], plant_img.shape[0]))
+        
+                    # Convert the points image to grayscale to create a mask
+                    gray_points = cv2.cvtColor(points_img, cv2.COLOR_BGR2GRAY)
+        
+                    # Threshold the points image to isolate the white points
+                    _, mask = cv2.threshold(gray_points, 240, 255, cv2.THRESH_BINARY)
+        
+                    # Convert the mask to a 3-channel image (same shape as the plant image)
+                    mask_3_channel = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+        
+                    # Overlay the points on the plant image using bitwise operations
+                    overlay_img = cv2.bitwise_or(plant_img, mask_3_channel)
+        
+                    # Save the result as a new image
+                    output_path = os.path.join(plant_folder_path, 'overlay_branch_points_image.jpg')
+                    
+                    cv2.imwrite(output_path, overlay_img)
+                    
+                    # Optionally display the result
+                    #cv2.imshow(f'Overlay Image - {plant_folder}', overlay_img)
+                    #cv2.waitKey(0)  # Wait indefinitely until a key is pressed
+                    #cv2.destroyAllWindows()  # Close the window
+        
+                else:
+                    print(f"Some target files are missing in folder: {plant_folder}")

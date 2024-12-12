@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import pdb
-
+import time
 def rotate_to_horizontal(image):
     # Rotate the image to horizontal (90 degrees counterclockwise)
     rotated_image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
@@ -24,7 +24,7 @@ def plot_images(images):
         plt.show()
 
 def image_stitching(images):
-    
+    start_time = time.time()  # Start the overall timer
     images = [image.astype(np.uint8) for image in images]
     images = [rotate_to_horizontal(image) for image in images]
     images = list(reversed(images))
@@ -75,5 +75,6 @@ def image_stitching(images):
     # Crop the final image to 512x512 centered around the middle
     cropped_final_panorama = final_panorama[:512, :512]
     rotated_final_panorama = rotate_to_vertical(cropped_final_panorama)
-
+    # End the overall timer
+    end_time = time.time()
     return rotated_final_panorama
